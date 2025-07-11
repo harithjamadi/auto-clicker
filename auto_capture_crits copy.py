@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 reader = easyocr.Reader(['en'])
 
 # === CONFIG ===
-pos_main = (923, 460)  # change based on crits
+pos_main = (995, 459)  # change based on crits
 pos_check = (1117, 210)
 
 color_check_allowed = [
@@ -22,11 +22,11 @@ color_check_allowed = [
     # (54, 87, 213)    # blue - rare
 ]
 
-attack_sequence = 2 
+attack_sequence = 2
 
 capture_rate = []
 rare_rate = ['17', '17%', '18', '18%', '20%', '20%']
-common_rate = ['J0%', 'J0%0', '20', '20%', '27', '27%', '28', '28%', '30', '30%']
+common_rate = ['3','J0%', 'J0%0', '20', '20%', '27', '27%', '28', '28%', '30', '30%']
 
 pos_extra1 = (597, 713)
 pos_extra2 = (917, 610)
@@ -117,7 +117,7 @@ def auto_clicker():
             color_check_now = get_pixel_color(1270, 731)
             print(f"Checking battle status...")
 
-            if colors_are_close(color_check_now, (39, 62, 82), tolerance=50):
+            if colors_are_close(color_check_now, (39, 62, 82), tolerance=30):
                 flag = False
                 break
 
@@ -147,7 +147,7 @@ def auto_clicker():
                     print(f"Detected: '{txt}' (Confidence: {prob:.2f}) at {bbox}")
                     text = txt.strip()
 
-            if any(val in text for val in capture_rate):
+            if text is not None and any(val in text for val in capture_rate):
                 msg = '🎉 A+ crits or above found, initiate to capture'
                 print(msg)
                 # send_telegram_message(msg)
@@ -158,8 +158,8 @@ def auto_clicker():
                     attack_color = get_pixel_color(*(987, 789))
                     if colors_are_close(attack_color, (135, 135, 135), tolerance=5):
                         pyautogui.click(722, 782)
-                        time.sleep(0.5)
-                        pyautogui.click(722, 782)
+                        # time.sleep(0.5)
+                        # pyautogui.click(722, 782)
                         print(f"#{i + 1} Attack")
                         i = i + 1
                     else:
@@ -169,19 +169,23 @@ def auto_clicker():
                     capture_color = get_pixel_color(*(1002, 282))
                     if colors_are_close(capture_color, (210, 115, 0), tolerance=20):
                         pyautogui.click(959, 276)
-                        time.sleep(0.5)
-                        pyautogui.click(959, 276)
+                        # time.sleep(0.5)
+                        # pyautogui.click(959, 276)
                         print("Attempt to capture Crits...")
+                        break
+                    # in a case the Crits being 1-shotted
+                    elif get_pixel_color(*(953, 464)) == (255, 255, 255):
+                        print("Crits died...")
                         break
                     else:
                         time.sleep(0.5)
 
                 while(True):
-                    time.sleep(5)
+                    time.sleep(6)
                     color_check_now = get_pixel_color(*(1043, 487))
                     if colors_are_close(color_check_now, (219, 132, 56), tolerance=0):
                         print("Crits successfully captured !")
-                        time.sleep(1)
+                        time.sleep(2)
 
                         pyautogui.click(944, 565)
                         time.sleep(0.5)
@@ -196,7 +200,12 @@ def auto_clicker():
                         pyautogui.click(915, 597)
                         time.sleep(0.5)
                         break
-
+                    # in a case the Crits being 1-shotted
+                    elif get_pixel_color(*(953, 464)) == (255, 255, 255):
+                        print("Crits died...")
+                        pyautogui.click(944, 692)
+                        time.sleep(2)
+                        break
                     else:
                         print("Crits failed to be captured, kill the Crits")
                         while not exit_program:
@@ -208,11 +217,13 @@ def auto_clicker():
                                 break
 
                         while not exit_program:
-                            color = get_pixel_color(809, 320)
-                            if color == (107, 138, 19):
-                                pyautogui.click(966, 694)
-                                time.sleep(0.5)
+                            color = get_pixel_color(*(953, 464)) # check hijau
+                            if color == (255, 255, 255):
+                                pyautogui.click(944, 692)
+                                time.sleep(2)
                                 break
+
+                        break
             else:
                 while not exit_program:
                     color = get_pixel_color(960, 201)
@@ -239,8 +250,8 @@ def auto_clicker():
                 attack_color = get_pixel_color(*(987, 789))
                 if colors_are_close(attack_color, (135, 135, 135), tolerance=5):
                     pyautogui.click(722, 782)
-                    time.sleep(0.5)
-                    pyautogui.click(722, 782)
+                    # time.sleep(0.5)
+                    # pyautogui.click(722, 782)
                     print(f"#{i + 1} Attack")
                     i = i + 1
                 else:
@@ -250,19 +261,19 @@ def auto_clicker():
                 capture_color = get_pixel_color(*(1002, 282))
                 if colors_are_close(capture_color, (210, 115, 0), tolerance=20):
                     pyautogui.click(959, 276)
-                    time.sleep(0.5)
-                    pyautogui.click(959, 276)
+                    # time.sleep(0.5)
+                    # pyautogui.click(959, 276)
                     print("Attempt to capture Crits...")
                     break
                 else:
                     time.sleep(0.5)
 
             while(True):
-                time.sleep(5)
+                time.sleep(6)
                 color_check_now = get_pixel_color(*(1043, 487))
                 if colors_are_close(color_check_now, (219, 132, 56), tolerance=0):
                     print("Crits successfully captured !")
-                    time.sleep(1)
+                    time.sleep(2)
 
                     pyautogui.click(944, 565)
                     time.sleep(0.5)
@@ -294,6 +305,8 @@ def auto_clicker():
                             pyautogui.click(966, 694)
                             time.sleep(0.5)
                             break
+
+                    break
 
 # === ENTRY POINT ===
 if __name__ == "__main__":
