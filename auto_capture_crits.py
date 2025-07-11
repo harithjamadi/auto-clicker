@@ -18,7 +18,7 @@ reader = easyocr.Reader(['en'])
 # pos_main = (916, 582) # for light ignios
 # pos_main = (929, 550) # for light ignios
 # pos_main = (942, 428) #foil waddle
-pos_main = (952, 414) # dslithero
+pos_main = (969, 473) # dslithero
 # pos_main = (983, 338) # for windy need to fix
 
 # pos_check = (1341, 115)
