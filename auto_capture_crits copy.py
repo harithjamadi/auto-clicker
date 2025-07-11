@@ -14,22 +14,18 @@ from dotenv import load_dotenv
 reader = easyocr.Reader(['en'])
 
 # === CONFIG ===
-pos_main = (995, 459)  # change based on crits
+pos_main = (995, 459)
 pos_check = (1117, 210)
 
 color_check_allowed = [
-    (87, 98, 104),   # gray - common
-    # (54, 87, 213)    # blue - rare
+    (87, 98, 104),  # gray - common
 ]
 
 attack_sequence = 2
 
 capture_rate = []
 rare_rate = ['17', '17%', '18', '18%', '20%', '20%']
-common_rate = ['3','J0%', 'J0%0', '20', '20%', '27', '27%', '28', '28%', '30', '30%']
-
-pos_extra1 = (597, 713)
-pos_extra2 = (917, 610)
+common_rate = ['J0%', 'J0%0', '20', '20%', '27', '27%', '28', '28%', '30', '30%']
 
 # === CONTROL FLAGS ===
 start_program = False
@@ -73,16 +69,13 @@ def send_telegram_message(message):
     except Exception as e:
         print(f"Failed to send Telegram message: {e}")
 
-# === INPUT LISTENER ===
 def on_key_press(key):
     global start_program, exit_program, paused
     try:
         if key.char == '`':
-            if paused:
-                print("Resuming program.")
-                paused = False
-            else:
-                print("` pressed. Starting program.")
+            paused = not paused
+            print("Resuming program." if not paused else "Pausing program.")
+            if not start_program:
                 start_program = True
         elif key.char == '-':
             print("- pressed. Pausing program.")
@@ -93,9 +86,63 @@ def on_key_press(key):
             exit_program = True
             os._exit(0)
 
-# === MAIN LOOP ===
+def wait_for_capture_opportunity():
+    while True:
+        capture_color = get_pixel_color(*(1002, 282))
+        if colors_are_close(capture_color, (210, 115, 0), tolerance=20):
+            pyautogui.click(959, 276)
+            print("Attempt to capture Crits...")
+            break
+        elif get_pixel_color(*(953, 464)) == (255, 255, 255):
+            print("Crits died...")
+            break
+        time.sleep(0.5)
+
+def post_capture_check():
+    while True:
+        time.sleep(6)
+        if colors_are_close(get_pixel_color(*(1043, 487)), (219, 132, 56), tolerance=0):
+            print("Crits successfully captured !")
+            for pos in [(944, 565), (944, 565), (944, 692), (944, 692), (915, 597)]:
+                pyautogui.click(*pos)
+                time.sleep(1)
+            break
+        elif get_pixel_color(*(953, 464)) == (255, 255, 255):
+            print("Crits died...")
+            pyautogui.click(944, 692)
+            time.sleep(2)
+            break
+        else:
+            print("Crits failed to be captured, kill the Crits")
+            kill_crits()
+            break
+
+def kill_crits():
+    while not exit_program:
+        if colors_are_close(get_pixel_color(960, 201), (237, 128, 25), tolerance=50):
+            pyautogui.click(719, 785)
+            time.sleep(0.5)
+        else:
+            break
+    while not exit_program:
+        if get_pixel_color(953, 464) == (255, 255, 255):
+            pyautogui.click(944, 692)
+            time.sleep(2)
+            break
+
+def run_attack_sequence():
+    i = 0
+    while i != attack_sequence:
+        attack_color = get_pixel_color(*(987, 789))
+        if colors_are_close(attack_color, (135, 135, 135), tolerance=5):
+            pyautogui.click(722, 782)
+            print(f"#{i + 1} Attack")
+            i += 1
+        else:
+            time.sleep(0.5)
+
 def auto_clicker():
-    global exit_program, paused
+    global exit_program, paused, capture_rate
 
     while not start_program and not exit_program:
         time.sleep(1)
@@ -105,214 +152,41 @@ def auto_clicker():
             time.sleep(1)
             continue
 
-        flag = True
-        while flag and not exit_program and not paused:
-            pyautogui.moveTo(*pos_main)
-            time.sleep(1.5)
-            pyautogui.mouseDown()
-            time.sleep(0.1)
-            pyautogui.mouseUp()
-            print(f"Search for Crits at {pos_main}")
+        pyautogui.moveTo(*pos_main)
+        time.sleep(1.5)
+        pyautogui.mouseDown()
+        time.sleep(0.1)
+        pyautogui.mouseUp()
+        print(f"Search for Crits at {pos_main}")
 
-            color_check_now = get_pixel_color(1270, 731)
-            print(f"Checking battle status...")
+        if colors_are_close(get_pixel_color(1270, 731), (39, 62, 82), tolerance=30):
+            time.sleep(3)
+            color_check_now = get_pixel_color(*pos_check)
+            print("Checking Crits rarity...")
 
-            if colors_are_close(color_check_now, (39, 62, 82), tolerance=30):
-                flag = False
-                break
+            if any(colors_are_close(color_check_now, c, tolerance=20) for c in color_check_allowed):
+                capture_rate = rare_rate if colors_are_close(color_check_now, (54, 87, 213), tolerance=20) else common_rate
+                img_np = np.array(ImageGrab.grab(bbox=(932, 285, 990, 312)))
+                results = reader.readtext(img_np)
+                print("OCR Results:")
+                text = next((txt.strip() for (_, txt, _) in results), None)
 
-        if exit_program or paused:
-            continue
-
-        time.sleep(3)
-
-        color_check_now = get_pixel_color(*pos_check)
-        print(f"Checking Crits rarity...")
-
-        if any(colors_are_close(color_check_now, c, tolerance=20) for c in color_check_allowed):
-
-            if colors_are_close(color_check_now, (54, 87, 213), tolerance=20):
-                capture_rate = rare_rate
+                if text and any(val in text for val in capture_rate):
+                    print('🎉 A+ crits or above found, initiate to capture')
+                    run_attack_sequence()
+                    wait_for_capture_opportunity()
+                    post_capture_check()
+                else:
+                    kill_crits()
             else:
-                capture_rate = common_rate
+                color_name = get_color_name(color_check_now)
+                print(f"⚠️ Miscrit rarity of {color_name}")
+                run_attack_sequence()
+                wait_for_capture_opportunity()
+                post_capture_check()
 
-            img = ImageGrab.grab(bbox=(932, 285, 990, 312))
-            img_np = np.array(img)
-            results = reader.readtext(img_np)
-            print("OCR Results:")
-
-            text = None
-            if results:
-                for (bbox, txt, prob) in results:
-                    print(f"Detected: '{txt}' (Confidence: {prob:.2f}) at {bbox}")
-                    text = txt.strip()
-
-            if text is not None and any(val in text for val in capture_rate):
-                msg = '🎉 A+ crits or above found, initiate to capture'
-                print(msg)
-                # send_telegram_message(msg)
-
-                i = 0
-
-                while (i != attack_sequence):
-                    attack_color = get_pixel_color(*(987, 789))
-                    if colors_are_close(attack_color, (135, 135, 135), tolerance=5):
-                        pyautogui.click(722, 782)
-                        # time.sleep(0.5)
-                        # pyautogui.click(722, 782)
-                        print(f"#{i + 1} Attack")
-                        i = i + 1
-                    else:
-                        time.sleep(0.5)
-
-                while True:
-                    capture_color = get_pixel_color(*(1002, 282))
-                    if colors_are_close(capture_color, (210, 115, 0), tolerance=20):
-                        pyautogui.click(959, 276)
-                        # time.sleep(0.5)
-                        # pyautogui.click(959, 276)
-                        print("Attempt to capture Crits...")
-                        break
-                    # in a case the Crits being 1-shotted
-                    elif get_pixel_color(*(953, 464)) == (255, 255, 255):
-                        print("Crits died...")
-                        break
-                    else:
-                        time.sleep(0.5)
-
-                while(True):
-                    time.sleep(6)
-                    color_check_now = get_pixel_color(*(1043, 487))
-                    if colors_are_close(color_check_now, (219, 132, 56), tolerance=0):
-                        print("Crits successfully captured !")
-                        time.sleep(2)
-
-                        pyautogui.click(944, 565)
-                        time.sleep(0.5)
-                        pyautogui.click(944, 565)
-                        time.sleep(2)
-
-                        pyautogui.click(944, 692)
-                        time.sleep(0.5)
-                        pyautogui.click(944, 692)
-                        time.sleep(2)
-
-                        pyautogui.click(915, 597)
-                        time.sleep(0.5)
-                        break
-                    # in a case the Crits being 1-shotted
-                    elif get_pixel_color(*(953, 464)) == (255, 255, 255):
-                        print("Crits died...")
-                        pyautogui.click(944, 692)
-                        time.sleep(2)
-                        break
-                    else:
-                        print("Crits failed to be captured, kill the Crits")
-                        while not exit_program:
-                            color = get_pixel_color(960, 201)
-                            if colors_are_close(color, (237, 128, 25), tolerance=50):
-                                pyautogui.click(719, 785)
-                                time.sleep(0.5)
-                            else:
-                                break
-
-                        while not exit_program:
-                            color = get_pixel_color(*(953, 464)) # check hijau
-                            if color == (255, 255, 255):
-                                pyautogui.click(944, 692)
-                                time.sleep(2)
-                                break
-
-                        break
-            else:
-                while not exit_program:
-                    color = get_pixel_color(960, 201)
-                    if colors_are_close(color, (237, 128, 25), tolerance=50):
-                        pyautogui.click(719, 785)
-                        time.sleep(0.5)
-                    else:
-                        break
-
-                while not exit_program:
-                    color = get_pixel_color(809, 320)
-                    if color == (107, 138, 19):
-                        pyautogui.click(966, 694)
-                        time.sleep(0.5)
-                        break
-        else:
-            color_name = get_color_name(color_check_now)
-            msg = f"⚠️ Miscrit rarity of {color_name}"
-            print(msg)
-            # send_telegram_message(msg)
-            i = 0
-
-            while (i != attack_sequence):
-                attack_color = get_pixel_color(*(987, 789))
-                if colors_are_close(attack_color, (135, 135, 135), tolerance=5):
-                    pyautogui.click(722, 782)
-                    # time.sleep(0.5)
-                    # pyautogui.click(722, 782)
-                    print(f"#{i + 1} Attack")
-                    i = i + 1
-                else:
-                    time.sleep(0.5)
-
-            while True:
-                capture_color = get_pixel_color(*(1002, 282))
-                if colors_are_close(capture_color, (210, 115, 0), tolerance=20):
-                    pyautogui.click(959, 276)
-                    # time.sleep(0.5)
-                    # pyautogui.click(959, 276)
-                    print("Attempt to capture Crits...")
-                    break
-                else:
-                    time.sleep(0.5)
-
-            while(True):
-                time.sleep(6)
-                color_check_now = get_pixel_color(*(1043, 487))
-                if colors_are_close(color_check_now, (219, 132, 56), tolerance=0):
-                    print("Crits successfully captured !")
-                    time.sleep(2)
-
-                    pyautogui.click(944, 565)
-                    time.sleep(0.5)
-                    pyautogui.click(944, 565)
-                    time.sleep(2)
-
-                    pyautogui.click(944, 692)
-                    time.sleep(0.5)
-                    pyautogui.click(944, 692)
-                    time.sleep(2)
-
-                    pyautogui.click(915, 597)
-                    time.sleep(0.5)
-                    break
-
-                else:
-                    print("Crits failed to be captured, kill the Crits")
-                    while not exit_program:
-                        color = get_pixel_color(960, 201)
-                        if colors_are_close(color, (237, 128, 25), tolerance=50):
-                            pyautogui.click(719, 785)
-                            time.sleep(0.5)
-                        else:
-                            break
-
-                    while not exit_program:
-                        color = get_pixel_color(809, 320)
-                        if color == (107, 138, 19):
-                            pyautogui.click(966, 694)
-                            time.sleep(0.5)
-                            break
-
-                    break
-
-# === ENTRY POINT ===
 if __name__ == "__main__":
     print("Ready. Press ` to start/resume, '-' to pause, ESC to quit.")
-
     key_thread = threading.Thread(target=lambda: keyboard.Listener(on_press=on_key_press).run(), daemon=True)
     key_thread.start()
-
     auto_clicker()
