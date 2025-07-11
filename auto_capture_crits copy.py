@@ -2,7 +2,7 @@ import time
 import numpy as np
 import pyautogui
 from PIL import ImageGrab
-from pynput import keyboard
+from pynput import keyboard, mouse
 import threading
 import sys
 import requests
@@ -31,6 +31,8 @@ common_rate = ['J0%', 'J0%0', '20', '20%', '27', '27%', '28', '28%', '30', '30%'
 start_program = False
 paused = False
 exit_program = False
+config_mode = False
+mouse_listener = None
 
 # === UTILS ===
 def colors_are_close(c1, c2, tolerance=10):
@@ -69,17 +71,40 @@ def send_telegram_message(message):
     except Exception as e:
         print(f"Failed to send Telegram message: {e}")
 
+# === MOUSE CONFIG ===
+def on_click(x, y, button, pressed):
+    global pos_main, config_mode
+    if pressed and config_mode:
+        img = ImageGrab.grab().load()
+        color = img[x, y]
+        print(f"Configured Search Position at ({x}, {y}) - Color: RGB{color}")
+        pos_main = (x, y)
+        config_mode = False
+        return False  # stop listener
+
+def start_mouse_listener():
+    listener = mouse.Listener(on_click=on_click)
+    listener.start()
+    listener.join()
+
+# === INPUT LISTENER ===
 def on_key_press(key):
-    global start_program, exit_program, paused
+    global start_program, exit_program, paused, config_mode
     try:
         if key.char == '`':
-            paused = not paused
-            print("Resuming program." if not paused else "Pausing program.")
-            if not start_program:
-                start_program = True
+            if not config_mode:
+                paused = not paused
+                print("Resuming program." if not paused else "Pausing program.")
+                if not start_program:
+                    start_program = True
         elif key.char == '-':
             print("- pressed. Pausing program.")
             paused = True
+        elif key.char == '=':
+            if not start_program:
+                print("= pressed. Configure Crits Search Position: Click once to set position")
+                config_mode = True
+                threading.Thread(target=start_mouse_listener, daemon=True).start()
     except AttributeError:
         if key == keyboard.Key.esc:
             print("ESC pressed. Exiting immediately.")
@@ -186,7 +211,8 @@ def auto_clicker():
                 post_capture_check()
 
 if __name__ == "__main__":
-    print("Ready. Press ` to start/resume, '-' to pause, ESC to quit.")
+    print("Ready. Press = to set search position, ` to start/resume, '-' to pause, ESC to quit.")
     key_thread = threading.Thread(target=lambda: keyboard.Listener(on_press=on_key_press).run(), daemon=True)
     key_thread.start()
     auto_clicker()
+
