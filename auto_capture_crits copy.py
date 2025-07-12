@@ -114,7 +114,7 @@ def on_key_press(key):
 def wait_for_capture_opportunity():
     while True:
         capture_color = get_pixel_color(*(1002, 282))
-        if colors_are_close(capture_color, (210, 115, 0), tolerance=20):
+        if colors_are_close(capture_color, (210, 115, 0), tolerance=0):
             pyautogui.click(959, 276)
             print("Attempt to capture Crits...")
             break
@@ -130,6 +130,10 @@ def post_capture_check():
             print("Crits successfully captured !")
             for pos in [(944, 565), (944, 565), (944, 692), (944, 692), (915, 597)]:
                 pyautogui.click(*pos)
+                time.sleep(2)
+            # check for level up status
+            if colors_are_close(get_pixel_color(*(897, 591)), (166, 166, 166), tolerance=0):
+                pyautogui.click(*(959, 635))
                 time.sleep(1)
             break
         elif get_pixel_color(*(953, 464)) == (255, 255, 255):
@@ -158,13 +162,15 @@ def kill_crits():
 def run_attack_sequence():
     i = 0
     while i != attack_sequence:
-        attack_color = get_pixel_color(*(987, 789))
-        if colors_are_close(attack_color, (135, 135, 135), tolerance=5):
-            pyautogui.click(722, 782)
+        attack_color = get_pixel_color(*(638, 788))
+        if any(colors_are_close(attack_color, c, tolerance=0) for c in [(226, 237, 255), (240, 186, 52)]):
+            pyautogui.click(638, 788)
             print(f"#{i + 1} Attack")
             i += 1
         else:
             time.sleep(0.5)
+        time.sleep(5)
+    time.sleep(2)
 
 def auto_clicker():
     global exit_program, paused, capture_rate
@@ -195,7 +201,7 @@ def auto_clicker():
                 results = reader.readtext(img_np)
                 print("OCR Results:")
                 text = next((txt.strip() for (_, txt, _) in results), None)
-
+                print("Crits rating is ", text)
                 if text and any(val in text for val in capture_rate):
                     print('🎉 A+ crits or above found, initiate to capture')
                     run_attack_sequence()

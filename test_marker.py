@@ -6,7 +6,7 @@ def get_pixel_color(x, y):
     img = ImageGrab.grab().load()
     return img[x, y]
 
-pos = (809, 320)
+pos = (944, 565)
 
 time.sleep(2)  # Gives you time to switch window
 pyautogui.moveTo(*pos)
